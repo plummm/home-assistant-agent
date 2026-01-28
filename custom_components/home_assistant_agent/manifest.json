@@ -1,0 +1,11 @@
+{
+  "domain": "home_assistant_agent",
+  "name": "Home Assistant Agent",
+  "version": "0.1.0",
+  "documentation": "https://github.com/etenal/HA-agent",
+  "config_flow": true,
+  "dependencies": ["panel_custom"],
+  "requirements": [],
+  "codeowners": [],
+  "iot_class": "local_polling"
+}
