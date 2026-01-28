@@ -5,6 +5,7 @@
   "documentation": "https://github.com/plummm/home-assistant-agent",
   "config_flow": true,
   "dependencies": ["panel_custom"],
+  "after_dependencies": ["conversation"],
   "integration_type": "hub",
   "requirements": [],
   "codeowners": [],

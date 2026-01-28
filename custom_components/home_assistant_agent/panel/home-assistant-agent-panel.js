@@ -5,12 +5,32 @@ class HAAgentPanel extends HTMLElement {
     this._entities = [];
     this._suggestions = null;
     this._status = "Loading entities...";
+    this._baseUrl = "";
+    this._openaiKeyPresent = false;
+    this._anthropicKeyPresent = false;
+    this._geminiKeyPresent = false;
+    this._modelReasoning = "";
+    this._modelFast = "";
+    this._ttsModel = "";
+    this._sttModel = "";
+    this._instruction = "";
+    this._validation = null;
+  }
+
+  _renderModelOptions(selected, options) {
+    return options
+      .map((model) => {
+        const isSelected = model === selected ? "selected" : "";
+        return `<option value="${model}" ${isSelected}>${model}</option>`;
+      })
+      .join("");
   }
 
   set hass(hass) {
     this._hass = hass;
     if (!this._loaded) {
       this._loaded = true;
+      this._loadSettings();
       this._loadEntities();
     }
     this._render();
@@ -76,6 +96,15 @@ class HAAgentPanel extends HTMLElement {
           color: #fdf7e9;
           cursor: pointer;
         }
+        select, textarea {
+          flex: 1;
+          min-width: 220px;
+          padding: 10px 12px;
+          border-radius: 8px;
+          border: 1px solid rgba(0, 0, 0, 0.2);
+          background: rgba(255, 255, 255, 0.8);
+          font-family: inherit;
+        }
         button.secondary {
           background: #c96b3f;
         }
@@ -107,19 +136,136 @@ class HAAgentPanel extends HTMLElement {
         <h1>Home Assistant Agent</h1>
         <p>Placeholder panel for onboarding. Entities discovered: ${entityCount}</p>
         <div class="row">
-          <input id="llm-key" type="password" placeholder="Paste LLM API key" />
-          <button id="save-key">Save Key</button>
+          <input id="base-url" type="text" placeholder="Agent base URL" value="${this._baseUrl}" />
+        </div>
+        <div class="row">
+          <input id="openai-key" type="password" placeholder="OpenAI API key" />
+          <input id="anthropic-key" type="password" placeholder="Anthropic API key" />
+          <input id="gemini-key" type="password" placeholder="Gemini API key" />
+        </div>
+        <div class="row">
+          <select id="model-reasoning">
+            <option value="">Reasoning model (optional)</option>
+            ${this._renderModelOptions(this._modelReasoning, [
+              "gpt-5.2",
+              "gpt-5",
+              "claude-opus-4-5",
+              "claude-sonnet-4-5",
+              "gemini-3-flash-preview",
+              "gemini-2.5-flash"
+            ])}
+          </select>
+          <select id="model-fast">
+            <option value="">Fast model (optional)</option>
+            ${this._renderModelOptions(this._modelFast, [
+              "gpt-4.1-mini",
+              "claude-haiku-4-5",
+              "gemini-2.5-flash-lite"
+            ])}
+          </select>
+        </div>
+        <div class="row">
+          <select id="tts-model">
+            <option value="">TTS model (optional)</option>
+            ${this._renderModelOptions(this._ttsModel, [
+              "gpt-5.2-tts",
+              "gpt-5-tts",
+              "gpt-4o-mini-tts",
+              "tts-1",
+              "tts-1-hd",
+              "claude-opus-4-5-tts",
+              "claude-sonnet-4-5-tts",
+              "gemini-3-flash-preview-tts",
+              "gemini-2.5-flash-preview-tts",
+              "gemini-2.5-pro-preview-tts"
+            ])}
+          </select>
+          <select id="stt-model">
+            <option value="">STT model (optional)</option>
+            ${this._renderModelOptions(this._sttModel, [
+              "gpt-4o-transcribe",
+              "gpt-4o-mini-transcribe",
+              "gpt-4o-transcribe-diarize",
+              "whisper-1",
+              "chirp_3",
+              "claude-opus-4-5-stt",
+              "claude-sonnet-4-5-stt",
+              "gemini-3-flash-preview-stt",
+              "gemini-2.5-flash-stt"
+            ])}
+          </select>
+        </div>
+        <div class="row">
+          <textarea id="instruction" rows="4" placeholder="Agent instruction">${this._instruction}</textarea>
+        </div>
+        <div class="row">
+          <button id="save-settings">Save Settings</button>
           <button id="run-suggest" class="secondary">Run Suggest</button>
         </div>
+        <div class="status">
+          OpenAI key: ${this._openaiKeyPresent ? "stored" : "not set"} ·
+          Anthropic key: ${this._anthropicKeyPresent ? "stored" : "not set"} ·
+          Gemini key: ${this._geminiKeyPresent ? "stored" : "not set"}
+        </div>
+        ${
+          this._validation
+            ? `<pre>${JSON.stringify(this._validation, null, 2)}</pre>`
+            : ""
+        }
         <div class="status">${this._status}</div>
         ${suggestions ? `<pre>${suggestions}</pre>` : ""}
       </div>
     `;
 
-    this.shadowRoot.getElementById("save-key").onclick = () =>
-      this._saveKey();
+    const input = this.shadowRoot.getElementById("openai-key");
+    const stop = (event) => event.stopPropagation();
+    input.addEventListener("keydown", stop);
+    input.addEventListener("keyup", stop);
+    input.addEventListener("keypress", stop);
+    input.addEventListener("focusin", stop);
+    input.addEventListener("pointerdown", stop);
+
+    const stopIds = [
+      "base-url",
+      "anthropic-key",
+      "gemini-key",
+      "model-reasoning",
+      "model-fast",
+      "tts-model",
+      "stt-model",
+      "instruction"
+    ];
+    stopIds.forEach((id) => {
+      const el = this.shadowRoot.getElementById(id);
+      el.addEventListener("keydown", stop);
+      el.addEventListener("keyup", stop);
+      el.addEventListener("keypress", stop);
+      el.addEventListener("focusin", stop);
+      el.addEventListener("pointerdown", stop);
+    });
+
+    this.shadowRoot.getElementById("save-settings").onclick = () =>
+      this._saveSettings();
     this.shadowRoot.getElementById("run-suggest").onclick = () =>
       this._runSuggest();
+  }
+
+  async _loadSettings() {
+    try {
+      const data = await this._hass.callApi("GET", "home_assistant_agent/settings");
+      this._baseUrl = data.base_url || "";
+      this._openaiKeyPresent = Boolean(data.openai_key_present);
+      this._anthropicKeyPresent = Boolean(data.anthropic_key_present);
+      this._geminiKeyPresent = Boolean(data.gemini_key_present);
+      this._modelReasoning = data.model_reasoning || "";
+      this._modelFast = data.model_fast || "";
+      this._ttsModel = data.tts_model || "";
+      this._sttModel = data.stt_model || "";
+      this._instruction = data.instruction || "";
+    } catch (err) {
+      this._status = `Failed to load settings: ${err}`;
+    }
+    this._render();
   }
 
   async _loadEntities() {
@@ -136,16 +282,42 @@ class HAAgentPanel extends HTMLElement {
     this._render();
   }
 
-  async _saveKey() {
-    const input = this.shadowRoot.getElementById("llm-key");
-    const llmKey = input.value || "";
+  async _saveSettings() {
+    const baseInput = this.shadowRoot.getElementById("base-url");
+    const openaiKey = this.shadowRoot.getElementById("openai-key").value || "";
+    const anthropicKey = this.shadowRoot.getElementById("anthropic-key").value || "";
+    const geminiKey = this.shadowRoot.getElementById("gemini-key").value || "";
+    const modelReasoning = this.shadowRoot.getElementById("model-reasoning").value || "";
+    const modelFast = this.shadowRoot.getElementById("model-fast").value || "";
+    const ttsModel = this.shadowRoot.getElementById("tts-model").value || "";
+    const sttModel = this.shadowRoot.getElementById("stt-model").value || "";
+    const instruction = this.shadowRoot.getElementById("instruction").value || "";
     try {
-      await this._hass.callApi("POST", "home_assistant_agent/llm_key", {
-        llm_key: llmKey,
+      const result = await this._hass.callApi("POST", "home_assistant_agent/settings", {
+        base_url: baseInput.value || undefined,
+        openai_key: openaiKey,
+        anthropic_key: anthropicKey,
+        gemini_key: geminiKey,
+        model_reasoning: modelReasoning,
+        model_fast: modelFast,
+        tts_model: ttsModel,
+        stt_model: sttModel,
+        instruction,
+        validate: true
       });
-      this._status = "LLM key saved.";
+      this._baseUrl = result.base_url || this._baseUrl;
+      this._openaiKeyPresent = Boolean(result.openai_key_present);
+      this._anthropicKeyPresent = Boolean(result.anthropic_key_present);
+      this._geminiKeyPresent = Boolean(result.gemini_key_present);
+      this._modelReasoning = result.model_reasoning || this._modelReasoning;
+      this._modelFast = result.model_fast || this._modelFast;
+      this._ttsModel = result.tts_model || this._ttsModel;
+      this._sttModel = result.stt_model || this._sttModel;
+      this._instruction = result.instruction || this._instruction;
+      this._validation = result.validation || null;
+      this._status = "Settings saved.";
     } catch (err) {
-      this._status = `Failed to save key: ${err}`;
+      this._status = `Failed to save settings: ${err}`;
     }
     this._render();
   }

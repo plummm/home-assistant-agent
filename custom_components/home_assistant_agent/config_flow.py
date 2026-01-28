@@ -7,7 +7,7 @@ import voluptuous as vol
 from homeassistant import config_entries
 from homeassistant.core import callback
 
-from .const import CONF_BASE_URL, CONF_LLM_KEY, DEFAULT_BASE_URL, DOMAIN
+from .const import CONF_BASE_URL, CONF_SET_DEFAULT_AGENT, DEFAULT_BASE_URL, DOMAIN
 
 
 class HAAgentConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
@@ -17,12 +17,14 @@ class HAAgentConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
     async def async_step_user(self, user_input=None):
         if user_input is None:
-            data_schema = vol.Schema(
-                {vol.Required(CONF_BASE_URL, default=DEFAULT_BASE_URL): str}
+            return self.async_create_entry(
+                title="Home Assistant Agent",
+                data={CONF_BASE_URL: DEFAULT_BASE_URL},
             )
-            return self.async_show_form(step_id="user", data_schema=data_schema)
-
-        return self.async_create_entry(title="Home Assistant Agent", data=user_input)
+        return self.async_create_entry(
+            title="Home Assistant Agent",
+            data={CONF_BASE_URL: DEFAULT_BASE_URL},
+        )
 
     @staticmethod
     @callback
@@ -41,9 +43,11 @@ class HAAgentOptionsFlow(config_entries.OptionsFlow):
             data_schema = vol.Schema(
                 {
                     vol.Optional(
-                        CONF_LLM_KEY,
-                        default=self._config_entry.options.get(CONF_LLM_KEY, ""),
-                    ): str
+                        CONF_SET_DEFAULT_AGENT,
+                        default=self._config_entry.options.get(
+                            CONF_SET_DEFAULT_AGENT, False
+                        ),
+                    ): bool,
                 }
             )
             return self.async_show_form(step_id="init", data_schema=data_schema)
