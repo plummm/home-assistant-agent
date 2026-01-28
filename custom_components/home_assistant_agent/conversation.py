@@ -44,6 +44,10 @@ class HAAgentConversationAgent(AbstractConversationAgent):
         return "Home Assistant Agent"
 
     @property
+    def supported_languages(self) -> list[str]:
+        return ["*"]
+
+    @property
     def attribution(self) -> str:
         return "Powered by ha_agent_core"
 
