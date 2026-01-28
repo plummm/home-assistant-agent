@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from typing import Any
 
 from homeassistant.components import conversation
@@ -10,6 +11,7 @@ from homeassistant.components.conversation import (
     ConversationInput,
     ConversationResult,
 )
+from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.intent import IntentResponse
 
@@ -91,34 +93,37 @@ class HAAgentConversationAgent(AbstractConversationAgent):
         )
 
 
+async def _maybe_await(result: Any) -> None:
+    if asyncio.iscoroutine(result):
+        await result
+
+
 async def async_register_agent(
-    hass: HomeAssistant, agent: AbstractConversationAgent
+    hass: HomeAssistant, entry: ConfigEntry, agent: AbstractConversationAgent
 ) -> None:
     if hasattr(conversation, "async_set_agent"):
         try:
-            await conversation.async_set_agent(hass, agent)
+            result = conversation.async_set_agent(hass, entry, agent)
         except TypeError:
             try:
-                await conversation.async_set_agent(hass, agent.agent_id, agent)
-            except Exception:
-                entry = hass.config_entries.async_get_entry(agent.agent_id)
-                if entry:
-                    await conversation.async_set_agent(hass, entry, agent)
+                result = conversation.async_set_agent(hass, agent)
+            except TypeError:
+                result = conversation.async_set_agent(hass, entry.entry_id, agent)
+        await _maybe_await(result)
 
 
 async def async_unregister_agent(
-    hass: HomeAssistant, agent: AbstractConversationAgent
+    hass: HomeAssistant, entry: ConfigEntry, agent: AbstractConversationAgent
 ) -> None:
     if hasattr(conversation, "async_unset_agent"):
         try:
-            await conversation.async_unset_agent(hass, agent)
+            result = conversation.async_unset_agent(hass, entry)
         except TypeError:
             try:
-                await conversation.async_unset_agent(hass, agent.agent_id)
-            except Exception:
-                entry = hass.config_entries.async_get_entry(agent.agent_id)
-                if entry:
-                    await conversation.async_unset_agent(hass, entry)
+                result = conversation.async_unset_agent(hass, agent)
+            except TypeError:
+                result = conversation.async_unset_agent(hass, entry.entry_id)
+        await _maybe_await(result)
 
 
 async def async_set_default_agent(
@@ -126,10 +131,12 @@ async def async_set_default_agent(
 ) -> None:
     if hasattr(conversation, "async_set_default_agent"):
         try:
-            await conversation.async_set_default_agent(hass, agent)
+            result = conversation.async_set_default_agent(hass, agent)
         except TypeError:
-            await conversation.async_set_default_agent(hass, agent.agent_id)
+            result = conversation.async_set_default_agent(hass, agent.agent_id)
+        await _maybe_await(result)
         return
 
     if hasattr(conversation, "async_set_default_agent_id"):
-        await conversation.async_set_default_agent_id(hass, agent.agent_id)
+        result = conversation.async_set_default_agent_id(hass, agent.agent_id)
+        await _maybe_await(result)

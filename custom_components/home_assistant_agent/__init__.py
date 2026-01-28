@@ -94,7 +94,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         "settings": settings,
     }
     entry.async_on_unload(entry.add_update_listener(_async_entry_updated))
-    await async_register_agent(hass, agent)
+    await async_register_agent(hass, entry, agent)
 
     if entry.options.get(CONF_SET_DEFAULT_AGENT):
         await async_set_default_agent(hass, agent)
@@ -114,7 +114,7 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     domain_data = hass.data.get(DOMAIN, {})
     entry_data = domain_data.get("entries", {}).pop(entry.entry_id, None)
     if entry_data and entry_data.get("agent"):
-        await async_unregister_agent(hass, entry_data["agent"])
+        await async_unregister_agent(hass, entry, entry_data["agent"])
 
     if not hass.config_entries.async_entries(DOMAIN):
         if domain_data.get("panel_registered"):
