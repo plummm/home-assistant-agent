@@ -32,8 +32,8 @@ class HAAgentPanel extends HTMLElement {
       this._loaded = true;
       this._loadSettings();
       this._loadEntities();
+      this._render();
     }
-    this._render();
   }
 
   _render() {
@@ -68,10 +68,19 @@ class HAAgentPanel extends HTMLElement {
           margin: 0 0 8px;
           letter-spacing: 0.4px;
         }
+        h2 {
+          margin: 18px 0 6px;
+          font-size: 18px;
+        }
         p {
           margin: 0 0 16px;
           opacity: 0.85;
           line-height: 1.4;
+        }
+        .subtitle {
+          margin: 0 0 12px;
+          font-size: 14px;
+          opacity: 0.7;
         }
         .row {
           display: flex;
@@ -135,14 +144,15 @@ class HAAgentPanel extends HTMLElement {
       <div class="wrap">
         <h1>Home Assistant Agent</h1>
         <p>Placeholder panel for onboarding. Entities discovered: ${entityCount}</p>
-        <div class="row">
-          <input id="base-url" type="text" placeholder="Agent base URL" value="${this._baseUrl}" />
-        </div>
+        <h2>API Keys</h2>
+        <p class="subtitle">Provide one or more keys to unlock model choices.</p>
         <div class="row">
           <input id="openai-key" type="password" placeholder="OpenAI API key" />
           <input id="anthropic-key" type="password" placeholder="Anthropic API key" />
           <input id="gemini-key" type="password" placeholder="Gemini API key" />
         </div>
+        <h2>Reasoning Model</h2>
+        <p class="subtitle">Choose a powerful model for complex tasks.</p>
         <div class="row">
           <select id="model-reasoning">
             <option value="">Reasoning model (optional)</option>
@@ -164,6 +174,8 @@ class HAAgentPanel extends HTMLElement {
             ])}
           </select>
         </div>
+        <h2>Speech</h2>
+        <p class="subtitle">Optional TTS/STT models if you plan to use voice.</p>
         <div class="row">
           <select id="tts-model">
             <option value="">TTS model (optional)</option>
@@ -195,6 +207,8 @@ class HAAgentPanel extends HTMLElement {
             ])}
           </select>
         </div>
+        <h2>Instructions</h2>
+        <p class="subtitle">Customize how the agent behaves.</p>
         <div class="row">
           <textarea id="instruction" rows="4" placeholder="Agent instruction">${this._instruction}</textarea>
         </div>
@@ -226,7 +240,6 @@ class HAAgentPanel extends HTMLElement {
     input.addEventListener("pointerdown", stop);
 
     const stopIds = [
-      "base-url",
       "anthropic-key",
       "gemini-key",
       "model-reasoning",
@@ -283,7 +296,6 @@ class HAAgentPanel extends HTMLElement {
   }
 
   async _saveSettings() {
-    const baseInput = this.shadowRoot.getElementById("base-url");
     const openaiKey = this.shadowRoot.getElementById("openai-key").value || "";
     const anthropicKey = this.shadowRoot.getElementById("anthropic-key").value || "";
     const geminiKey = this.shadowRoot.getElementById("gemini-key").value || "";
@@ -294,7 +306,6 @@ class HAAgentPanel extends HTMLElement {
     const instruction = this.shadowRoot.getElementById("instruction").value || "";
     try {
       const result = await this._hass.callApi("POST", "home_assistant_agent/settings", {
-        base_url: baseInput.value || undefined,
         openai_key: openaiKey,
         anthropic_key: anthropicKey,
         gemini_key: geminiKey,

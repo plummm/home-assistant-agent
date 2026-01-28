@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+import socket
 from typing import Any
 
 from homeassistant.components import panel_custom
@@ -85,6 +86,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
             seed["openai_key"] = llm_key
         await storage.async_set_entry(entry.entry_id, seed)
     settings = await storage.async_get_entry(entry.entry_id)
+    raw_settings = await storage.async_get_entry_raw(entry.entry_id)
+    if "base_url" not in raw_settings:
+        port = _find_unused_port()
+        await _assign_agent_core_port(port)
+        settings = await storage.async_set_entry(
+            entry.entry_id, {"base_url": f"http://127.0.0.1:{port}"}
+        )
     client = HAAgentApi(settings.get("base_url", DEFAULT_BASE_URL), session)
     agent = HAAgentConversationAgent(hass, entry.entry_id)
     domain_data["entries"][entry.entry_id] = {
@@ -283,6 +291,17 @@ def _build_entity_payload(hass: HomeAssistant) -> list[dict[str, Any]]:
         )
 
     return entities
+
+
+def _find_unused_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+        sock.bind(("127.0.0.1", 0))
+        return sock.getsockname()[1]
+
+
+async def _assign_agent_core_port(port: int) -> None:
+    """Placeholder: assign the chosen port to ha_agent_core."""
+    return None
 
 
 class HAAgentEntitiesView(HomeAssistantView):

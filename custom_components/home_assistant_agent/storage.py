@@ -49,6 +49,10 @@ class HAAgentStorage:
         data = await self.async_load()
         return entry_id in data.get("entries", {})
 
+    async def async_get_entry_raw(self, entry_id: str) -> dict[str, Any]:
+        data = await self.async_load()
+        return (data.get("entries", {}) or {}).get(entry_id, {})
+
     async def async_set_entry(
         self, entry_id: str, updates: dict[str, Any]
     ) -> dict[str, Any]:
