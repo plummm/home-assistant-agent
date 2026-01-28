@@ -2,6 +2,6 @@
   "name": "Home Assistant Agent",
   "content_in_root": false,
   "render_readme": false,
-  "zip_release": true,
+  "zip_release": false,
   "domains": ["home_assistant_agent"]
 }
