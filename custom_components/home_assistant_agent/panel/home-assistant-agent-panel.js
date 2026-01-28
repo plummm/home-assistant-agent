@@ -144,6 +144,12 @@ class HAAgentPanel extends HTMLElement {
       <div class="wrap">
         <h1>Home Assistant Agent</h1>
         <p>Placeholder panel for onboarding. Entities discovered: ${entityCount}</p>
+        <h2>Connection</h2>
+        <p class="subtitle">Configure the ha_agent_core add-on base URL.</p>
+        <div class="row">
+          <input id="base-url" type="text" placeholder="http://core-ha_agent_core" value="${this._baseUrl || ""}" />
+          <button id="check-addon" class="secondary">Check Add-on</button>
+        </div>
         <h2>API Keys</h2>
         <p class="subtitle">Provide one or more keys to unlock model choices.</p>
         <div class="row">
@@ -261,6 +267,8 @@ class HAAgentPanel extends HTMLElement {
       this._saveSettings();
     this.shadowRoot.getElementById("run-suggest").onclick = () =>
       this._runSuggest();
+    this.shadowRoot.getElementById("check-addon").onclick = () =>
+      this._checkAddon();
   }
 
   async _loadSettings() {
@@ -275,6 +283,9 @@ class HAAgentPanel extends HTMLElement {
       this._ttsModel = data.tts_model || "";
       this._sttModel = data.stt_model || "";
       this._instruction = data.instruction || "";
+      if (!this._baseUrl) {
+        this._status = "Add-on base URL not set.";
+      }
     } catch (err) {
       this._status = `Failed to load settings: ${err}`;
     }
@@ -296,6 +307,7 @@ class HAAgentPanel extends HTMLElement {
   }
 
   async _saveSettings() {
+    const baseUrl = this.shadowRoot.getElementById("base-url").value || "";
     const openaiKey = this.shadowRoot.getElementById("openai-key").value || "";
     const anthropicKey = this.shadowRoot.getElementById("anthropic-key").value || "";
     const geminiKey = this.shadowRoot.getElementById("gemini-key").value || "";
@@ -306,6 +318,7 @@ class HAAgentPanel extends HTMLElement {
     const instruction = this.shadowRoot.getElementById("instruction").value || "";
     try {
       const result = await this._hass.callApi("POST", "home_assistant_agent/settings", {
+        base_url: baseUrl,
         openai_key: openaiKey,
         anthropic_key: anthropicKey,
         gemini_key: geminiKey,
@@ -329,6 +342,20 @@ class HAAgentPanel extends HTMLElement {
       this._status = "Settings saved.";
     } catch (err) {
       this._status = `Failed to save settings: ${err}`;
+    }
+    this._render();
+  }
+
+  async _checkAddon() {
+    try {
+      const result = await this._hass.callApi("GET", "home_assistant_agent/health");
+      if (result.status === "success") {
+        this._status = "Add-on is reachable.";
+      } else {
+        this._status = `Add-on check failed: ${result.error || "unknown error"}`;
+      }
+    } catch (err) {
+      this._status = `Add-on check failed: ${err}`;
     }
     this._render();
   }

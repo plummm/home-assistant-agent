@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from dataclasses import dataclass
 from typing import Any
 
 from homeassistant.components import conversation
@@ -13,21 +14,52 @@ from homeassistant.components.conversation import (
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers import aiohttp_client
 from homeassistant.helpers.intent import IntentResponse
 
-from .const import DOMAIN
+from .const import DEFAULT_BASE_URL, DOMAIN
 
 
-def _provider_for_model(model: str | None) -> str | None:
-    if not model:
+@dataclass
+class AddonConfig:
+    model_reasoning: str | None = None
+    model_fast: str | None = None
+
+
+async def _fetch_addon_config(hass: HomeAssistant, entry_id: str) -> AddonConfig | None:
+    entry_data = hass.data.get(DOMAIN, {}).get("entries", {}).get(entry_id, {})
+    if not entry_data:
         return None
-    if model.startswith("gpt-"):
-        return "openai"
-    if model.startswith("claude-"):
-        return "anthropic"
-    if model.startswith("gemini-"):
-        return "gemini"
-    return None
+    now = asyncio.get_running_loop().time()
+    cached = entry_data.get("addon_config")
+    cached_ts = float(entry_data.get("addon_config_ts") or 0.0)
+    if cached and (now - cached_ts) < 15:
+        return cached
+
+    base_url = entry_data.get("settings", {}).get("base_url", DEFAULT_BASE_URL)
+    session = aiohttp_client.async_get_clientsession(hass)
+    url = f"{base_url.rstrip('/')}/config"
+    try:
+        async with session.get(url, timeout=15) as resp:
+            payload = await resp.json()
+    except Exception:  # noqa: BLE001
+        entry_data["addon_config_ts"] = now
+        entry_data["addon_config"] = None
+        return None
+
+    config = payload.get("config") if isinstance(payload, dict) else None
+    if not isinstance(config, dict):
+        entry_data["addon_config_ts"] = now
+        entry_data["addon_config"] = None
+        return None
+
+    parsed = AddonConfig(
+        model_reasoning=config.get("model_reasoning"),
+        model_fast=config.get("model_fast"),
+    )
+    entry_data["addon_config"] = parsed
+    entry_data["addon_config_ts"] = now
+    return parsed
 
 
 class HAAgentConversationAgent(AbstractConversationAgent):
@@ -62,16 +94,10 @@ class HAAgentConversationAgent(AbstractConversationAgent):
             .get(self._entry_id, {})
         )
         client = entry_data.get("client")
-        settings = entry_data.get("settings", {})
-        model = settings.get("model_reasoning") or settings.get("model_fast")
-        provider = _provider_for_model(model)
-        llm_key = None
-        if provider == "openai":
-            llm_key = settings.get("openai_key")
-        elif provider == "anthropic":
-            llm_key = settings.get("anthropic_key")
-        elif provider == "gemini":
-            llm_key = settings.get("gemini_key")
+        addon_cfg = await _fetch_addon_config(self.hass, self._entry_id)
+        model = addon_cfg.model_reasoning if addon_cfg else None
+        if not model and addon_cfg:
+            model = addon_cfg.model_fast
 
         response_text = "Sorry, I couldn't reach the agent."
         conversation_id = conversation_input.conversation_id
@@ -80,7 +106,6 @@ class HAAgentConversationAgent(AbstractConversationAgent):
                 conversation_input.text,
                 conversation_id=conversation_id,
                 use_llm=True,
-                api_key=llm_key,
                 model=model,
             )
             response_text = result.get("response", response_text)

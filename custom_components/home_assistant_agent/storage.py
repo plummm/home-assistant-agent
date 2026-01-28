@@ -9,7 +9,6 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     DEFAULT_BASE_URL,
-    DEFAULT_INSTRUCTION,
 )
 
 STORAGE_KEY = "home_assistant_agent"
@@ -34,15 +33,6 @@ class HAAgentStorage:
         entry = entries.get(entry_id) or {}
         return {
             "base_url": entry.get("base_url", DEFAULT_BASE_URL),
-            "llm_key": entry.get("llm_key", ""),
-            "openai_key": entry.get("openai_key", ""),
-            "anthropic_key": entry.get("anthropic_key", ""),
-            "gemini_key": entry.get("gemini_key", ""),
-            "model_reasoning": entry.get("model_reasoning", ""),
-            "model_fast": entry.get("model_fast", ""),
-            "tts_model": entry.get("tts_model", ""),
-            "stt_model": entry.get("stt_model", ""),
-            "instruction": entry.get("instruction", DEFAULT_INSTRUCTION),
         }
 
     async def async_entry_exists(self, entry_id: str) -> bool:
@@ -64,5 +54,4 @@ class HAAgentStorage:
         await self._store.async_save(data)
         return {
             "base_url": entry.get("base_url", DEFAULT_BASE_URL),
-            "llm_key": entry.get("llm_key", ""),
         }

@@ -15,7 +15,7 @@ CONF_TTS_MODEL = "tts_model"
 CONF_STT_MODEL = "stt_model"
 CONF_INSTRUCTION = "instruction"
 
-DEFAULT_BASE_URL = "http://localhost:3511"
+DEFAULT_BASE_URL = "http://core-ha_agent_core"
 
 DEFAULT_INSTRUCTION = (
     "You are Home Assistant Agent, a helpful assistant embedded in Home Assistant. "
