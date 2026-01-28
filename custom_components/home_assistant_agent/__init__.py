@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from homeassistant.components import panel_custom
-from homeassistant.components.http import HomeAssistantView
+from homeassistant.components.http import HomeAssistantView, StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import aiohttp_client
@@ -83,8 +83,8 @@ async def _async_entry_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
 
 
 async def _async_register_panel(hass: HomeAssistant) -> None:
-    hass.http.async_register_static_path(
-        PANEL_STATIC_URL, str(PANEL_FILE_PATH), cache_headers=False
+    await hass.http.async_register_static_paths(
+        [StaticPathConfig(PANEL_STATIC_URL, str(PANEL_FILE_PATH), False)]
     )
     await panel_custom.async_register_panel(
         hass,
