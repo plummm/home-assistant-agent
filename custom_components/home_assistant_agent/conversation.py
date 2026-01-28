@@ -98,7 +98,12 @@ async def async_register_agent(
         try:
             await conversation.async_set_agent(hass, agent)
         except TypeError:
-            await conversation.async_set_agent(hass, agent.agent_id, agent)
+            try:
+                await conversation.async_set_agent(hass, agent.agent_id, agent)
+            except Exception:
+                entry = hass.config_entries.async_get_entry(agent.agent_id)
+                if entry:
+                    await conversation.async_set_agent(hass, entry, agent)
 
 
 async def async_unregister_agent(
@@ -108,7 +113,12 @@ async def async_unregister_agent(
         try:
             await conversation.async_unset_agent(hass, agent)
         except TypeError:
-            await conversation.async_unset_agent(hass, agent.agent_id)
+            try:
+                await conversation.async_unset_agent(hass, agent.agent_id)
+            except Exception:
+                entry = hass.config_entries.async_get_entry(agent.agent_id)
+                if entry:
+                    await conversation.async_unset_agent(hass, entry)
 
 
 async def async_set_default_agent(
